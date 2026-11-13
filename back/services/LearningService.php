@@ -9,9 +9,10 @@ final class LearningService
     /** Obtiene cursos publicados junto con el avance de la persona actual. */
     public function catalog(): array
     {
-        $query = $this->db->prepare("SELECT c.id,c.slug,c.title,c.short_description,c.cover_image_url,c.estimated_minutes,c.level,cc.name category,COALESCE(uc.progress_percentage,0) progress,uc.status,uc.last_accessed_at FROM courses c JOIN course_categories cc ON cc.id=c.category_id LEFT JOIN user_courses uc ON uc.course_id=c.id AND uc.user_id=? WHERE c.status='published' ORDER BY CASE WHEN uc.id IS NULL THEN 1 ELSE 0 END,uc.last_accessed_at DESC,c.published_at DESC");
+        $query = $this->db->prepare("SELECT c.id,c.slug,c.title,c.short_description,c.cover_image_url,c.estimated_minutes,c.level,cc.name category,COALESCE(uc.progress_percentage,0) progress,uc.status,uc.final_score,uc.abandonment_reason,uc.last_accessed_at FROM courses c JOIN course_categories cc ON cc.id=c.category_id LEFT JOIN user_courses uc ON uc.course_id=c.id AND uc.user_id=? WHERE c.status='published' ORDER BY CASE WHEN uc.id IS NULL THEN 1 ELSE 0 END,uc.last_accessed_at DESC,c.published_at DESC");
         $query->execute([$this->user['id'] ?? 0]);
-        return $query->fetchAll();
+        $courses=$query->fetchAll();
+        return $this->user ? (new AdaptiveRecommendationService($this->db))->rank((int)$this->user['id'],$courses) : $courses;
     }
 
     /** Obtiene el detalle del curso y sus lecciones ordenadas. */
@@ -21,6 +22,7 @@ final class LearningService
         $query->execute([$this->user['id'] ?? 0, $slug]);
         $course = $query->fetch();
         if (!$course) return null;
+        if ($this->user) (new AdaptiveRecommendationService($this->db))->record((int)$this->user['id'],'opened',(int)$course['id']);
         $this->markCourseAccessed((int) $course['id']);
 
         foreach (['course_learning_outcomes'=>'outcomes','course_prerequisites'=>'prerequisites'] as $table=>$field) {
@@ -71,6 +73,7 @@ final class LearningService
         if (!$check->fetchColumn()) throw new LearningServiceException('Curso no disponible.',404);
         $query=$this->db->prepare("INSERT INTO user_courses(user_id,course_id,status,started_at,last_accessed_at,created_at,updated_at) VALUES(?,?,'in_progress',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE status=IF(status='not_started','in_progress',status),last_accessed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP");
         $query->execute([$this->user['id'],$courseId]);
+        (new AdaptiveRecommendationService($this->db))->record((int)$this->user['id'],'enrolled',$courseId);
     }
 
     /** Guarda un intento de actividad y calcula el resultado de un cuestionario. */
@@ -92,6 +95,7 @@ final class LearningService
         $feedback=$practice?'Tu actividad quedó guardada y pendiente de revisión.':($content['feedback'] ?? '');
         $save=$this->db->prepare('INSERT INTO user_block_attempts(user_course_id,lesson_block_id,attempt_number,answer_data,score,is_passed,feedback,submitted_at) VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)');
         $save->execute([$enrollment,$blockId,$attempt,json_encode(['answer'=>$answer],JSON_UNESCAPED_UNICODE),$practice?null:($passed?100:0),$practice?null:$passed,$feedback]);
+        (new AdaptiveRecommendationService($this->db))->record((int)$this->user['id'],'attempt_submitted',(int)$block['course_id'],['score'=>$practice ? null : ($passed ? 100 : 0)]);
         return ['ok'=>true,'pending_review'=>$practice,'passed'=>$practice?null:$passed,'score'=>$practice?null:($passed?100:0),'feedback'=>$feedback];
     }
 
@@ -113,9 +117,13 @@ final class LearningService
             $doneQuery=$this->db->prepare('SELECT COUNT(*) FROM user_lesson_progress p JOIN lessons l ON l.id=p.lesson_id JOIN course_modules m ON m.id=l.module_id WHERE p.user_course_id=? AND m.course_id=? AND p.is_completed=1 AND l.is_required=1');
             $doneQuery->execute([$enrollment,$courseId]);
             $progress=$total?round((int)$doneQuery->fetchColumn()*100/$total,2):0;
-            $update=$this->db->prepare("UPDATE user_courses SET progress_percentage=?,status=?,completed_at=IF(?=100,CURRENT_TIMESTAMP,NULL),last_accessed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?");
-            $update->execute([$progress,$progress===100?'completed':'in_progress',$progress,$enrollment]);
+            $scoreQuery=$this->db->prepare('SELECT AVG(score) FROM user_block_attempts WHERE user_course_id=? AND score IS NOT NULL');
+            $scoreQuery->execute([$enrollment]);
+            $finalScore=$scoreQuery->fetchColumn();
+            $update=$this->db->prepare("UPDATE user_courses SET progress_percentage=?,status=?,final_score=?,completed_at=IF(?=100,CURRENT_TIMESTAMP,NULL),last_accessed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?");
+            $update->execute([$progress,$progress===100?'completed':'in_progress',$finalScore === null ? null : round((float)$finalScore,2),$progress,$enrollment]);
             $this->db->commit();
+            if ($progress===100) (new AdaptiveRecommendationService($this->db))->record((int)$this->user['id'],'completed',$courseId,['final_score'=>$finalScore === null ? null : round((float)$finalScore,2)]);
             return ['ok'=>true,'progress'=>$progress];
         } catch (Throwable $exception) {
             if ($this->db->inTransaction()) $this->db->rollBack();

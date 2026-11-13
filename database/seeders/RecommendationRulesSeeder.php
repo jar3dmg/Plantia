@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-/** Seeds the recommendation policy from “Reglas Tuboco.pdf”. */
+/** Seeds the recommendation policy from “Reglas Plantia.pdf”. */
 final class RecommendationRulesSeeder
 {
     public static function run(PDO $db): int
@@ -64,7 +64,7 @@ final class RecommendationRulesSeeder
     {
         $now=date('Y-m-d H:i:s');
         $q=$db->prepare('INSERT INTO recommendation_rules (code,name,priority,is_active,description,created_at,updated_at) VALUES (?,?,?,1,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),priority=VALUES(priority),description=VALUES(description),is_active=1,updated_at=VALUES(updated_at)');
-        $q->execute([$rule['code'],$rule['name'],$rule['priority'],'Regla sembrada desde el documento Reglas Tuboco.',$now,$now]);
+        $q->execute([$rule['code'],$rule['name'],$rule['priority'],'Regla sembrada desde el documento Reglas Plantia.',$now,$now]);
         $id=(int)$db->prepare('SELECT id FROM recommendation_rules WHERE code=?')->execute([$rule['code']]);
         $s=$db->prepare('SELECT id FROM recommendation_rules WHERE code=?'); $s->execute([$rule['code']]); $ruleId=(int)$s->fetchColumn();
         $db->prepare('DELETE FROM recommendation_rule_conditions WHERE rule_id=?')->execute([$ruleId]); $db->prepare('DELETE FROM recommendation_rule_actions WHERE rule_id=?')->execute([$ruleId]);

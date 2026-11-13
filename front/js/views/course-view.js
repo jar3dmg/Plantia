@@ -1,20 +1,36 @@
 import { courseCoverUrl, escapeHtml, icon } from "./view-utils.js";
 
+export function formatDuration(minutes) {
+  const total = Number(minutes) || 0;
+  if (!total) return "A tu ritmo";
+  const hours = Math.floor(total / 60);
+  const remainder = total % 60;
+  if (!hours) return `${remainder} min`;
+  return remainder ? `${hours} h ${remainder} min` : `${hours} h`;
+}
+
+export function formatLevel(level) {
+  return {
+    beginner: "Principiante",
+    intermediate: "Intermedio",
+    advanced: "Avanzado",
+  }[level] || level || "Todos los niveles";
+}
+
 // Plantillas del catálogo y las lecciones.
 
 export function renderCatalog(courses) {
-  const available = courses.filter((course) => !course.status);
   const cover = (course) =>
     courseCoverUrl(course)
       ? `<img class="course-cover-image" src="${escapeHtml(courseCoverUrl(course))}" alt="Portada: ${escapeHtml(course.title)}" loading="lazy">`
       : icon("book", "icon-xl");
-  const cards = available
+  const cards = courses
     .map(
       (course, index) =>
-        `<article class="course catalog-course" style="--card-index:${index}"><div class="course-art course-cover">${cover(course)}<span>${Number(course.estimated_minutes) || 0} min</span></div><div class="course-copy"><span class="course-topic">${escapeHtml(course.category)}</span><h3>${escapeHtml(course.title)}</h3><p>${escapeHtml(course.short_description)}</p><div class="catalog-course-meta"><span>${escapeHtml(course.level || "Todos los niveles")}</span><span>${Number(course.estimated_minutes) || 0} min</span></div><button class="text-button" data-course="${escapeHtml(course.slug)}">Conocer el curso ${icon("arrow")}</button></div></article>`,
+        `<article class="course catalog-course ${course.status ? "is-enrolled" : ""}" style="--card-index:${index}" data-course="${escapeHtml(course.slug)}" data-course-id="${Number(course.id)}" tabindex="0" role="link" aria-label="Abrir curso: ${escapeHtml(course.title)}"><div class="course-art course-cover">${cover(course)}<span>${formatDuration(course.estimated_minutes)}</span>${course.status ? '<span class="course-enrolled-badge">Inscrito</span>' : ""}</div><div class="course-copy"><span class="course-topic">${escapeHtml(course.category)}</span><h3>${escapeHtml(course.title)}</h3><p>${escapeHtml(course.short_description)}</p>${course.recommendation_reason ? `<p class="course-recommendation">Para ti: ${escapeHtml(course.recommendation_reason)}</p>` : ""}<div class="catalog-course-meta"><span>${escapeHtml(formatLevel(course.level))}</span><span>${formatDuration(course.estimated_minutes)}</span></div><span class="card-open-hint">${course.status ? "Continuar curso" : "Ver curso"} ${icon("arrow")}</span><button type="button" class="dismiss-course-button" data-dismiss-course>No me interesa</button></div></article>`,
     )
     .join("");
-  return `<main class="home catalog-page"><header class="catalog-banner"><div><span class="eyebrow">Biblioteca Tuboco</span><h1>Encuentra tu próximo aprendizaje</h1><p>Explora todos los cursos disponibles y elige por dónde quieres empezar.</p><span class="catalog-count">${available.length} ${available.length === 1 ? "curso disponible" : "cursos disponibles"}</span></div><span class="catalog-banner-art" aria-hidden="true">${icon("leaf", "icon-xl")}</span></header>${available.length ? `<section class="catalog-results"><div class="course-grid">${cards}</div></section>` : '<section class="catalog-empty"><span class="eyebrow">Biblioteca al día</span><h2>Ya estás inscrito en todos los cursos</h2><p>Cuando haya nuevos cursos, aparecerán aquí.</p></section>'}</main>`;
+  return `<main class="home catalog-page"><header class="catalog-banner"><div><span class="eyebrow">Biblioteca Plantia</span><h1>Encuentra tu próximo aprendizaje</h1><p>Explora todos los cursos disponibles y elige por dónde quieres empezar.</p><span class="catalog-count">${courses.length} ${courses.length === 1 ? "curso" : "cursos"}</span></div><span class="catalog-banner-art" aria-hidden="true">${icon("leaf", "icon-xl")}</span></header>${courses.length ? `<section class="catalog-results"><div class="course-grid">${cards}</div></section>` : '<section class="catalog-empty"><span class="eyebrow">Biblioteca al día</span><h2>Estamos preparando nuevos cursos</h2><p>Vuelve pronto para descubrir tu próximo aprendizaje.</p></section>'}</main>`;
 }
 
 export function renderCourse(course) {

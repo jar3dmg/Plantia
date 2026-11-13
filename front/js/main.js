@@ -3,6 +3,7 @@ import {
   authenticate,
   endSession,
   getSession,
+  getPlantCatalog,
   saveOnboardingProfile,
   savePreferences,
 } from "./services/session-service.js";
@@ -13,15 +14,18 @@ import {
   getLesson,
   listCourses,
   listReferences,
+  recordAdaptiveEvent,
   submitActivityAttempt,
 } from "./services/course-service.js";
 import { dashboardLayout, bindDashboard } from "./views/dashboard-view.js";
 import { renderAuth } from "./views/auth-view.js";
-import { renderOnboarding } from "./views/onboarding-view.js?coldstart-v2";
+import { renderOnboarding } from "./views/onboarding-view.js?coldstart-v3";
 import {
   renderCatalog,
   renderCourse,
   renderLesson,
+  formatDuration,
+  formatLevel,
 } from "./views/course-view.js";
 import {
   courseCoverUrl,
@@ -38,6 +42,7 @@ const state = {
   profile: null,
   step: 1,
   answers: { has_garden: false, has_pots: false, interests: [], goal: "", region_code: "", has_pets: null, plant_codes: [] },
+  plants: [],
 };
 const routeNames = {
   home: "inicio",
@@ -53,9 +58,9 @@ const routeViews = {
 };
 
 function renderFatal(error) {
-  console.error("Error al iniciar Tuboco:", error);
+  console.error("Error al iniciar Plantia:", error);
   app.innerHTML =
-    '<section class="center"><article class="card"><h1>No se pudo cargar Tuboco</h1><p class="hint">Ocurrió un error al iniciar. Recarga la página; si continúa, comprueba que PHP y MySQL estén activos.</p><button class="secondary" onclick="location.reload()">Recargar</button></article></section>';
+    '<section class="center"><article class="card"><h1>No se pudo cargar Plantia</h1><p class="hint">Ocurrió un error al iniciar. Recarga la página; si continúa, comprueba que PHP y MySQL estén activos.</p><button class="secondary" onclick="location.reload()">Recargar</button></article></section>';
 }
 
 function showLoading(message = "Cargando...") {
@@ -68,6 +73,21 @@ function showServiceError(container, message) {
     main,
     message || "No se pudieron cargar los datos. Inténtalo de nuevo.",
   );
+}
+
+function requestCourseEnrollment(course) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    dialog.className = "enrollment-dialog";
+    dialog.innerHTML = `<div class="enrollment-dialog-content"><span class="eyebrow">Antes de continuar</span><h2>Inscríbete para iniciar esta lección</h2><p></p><div class="enrollment-dialog-actions"><button type="button" class="secondary" data-cancel-enrollment>Ahora no</button><button type="button" class="primary" data-confirm-enrollment>Inscribirme</button></div></div>`;
+    dialog.querySelector("p").textContent = `Para abrir esta lección necesitas inscribirte en “${course.title}”.`;
+    const finish = (confirmed) => { dialog.close(); dialog.remove(); resolve(confirmed); };
+    dialog.querySelector("[data-cancel-enrollment]").onclick = () => finish(false);
+    dialog.querySelector("[data-confirm-enrollment]").onclick = () => finish(true);
+    dialog.addEventListener("cancel", (event) => { event.preventDefault(); finish(false); });
+    document.body.append(dialog);
+    dialog.showModal();
+  });
 }
 
 function courseCover(course) {
@@ -105,7 +125,7 @@ async function renderHome() {
   if (result.error) {
     renderDashboard(
       "home",
-      `<main class="home"><section class="welcome-banner"><span class="eyebrow">Tu espacio de aprendizaje</span><h1>Hola, ${escapeHtml(state.user.name.split(" ")[0])}</h1><p>Bienvenido a Tuboco. Explora los cursos y aprende a tu ritmo.</p><button class="hero-button" data-open-courses>Explorar cursos ${icon("arrow")}</button></section><section class="empty-course-feature"><span class="eyebrow">Tu aprendizaje comienza aquí</span><h2>Descubre tu próximo curso</h2><p>Explora el catálogo y encuentra algo nuevo para cultivar.</p><button class="primary" data-open-courses>Ver cursos disponibles</button></section></main>`,
+      `<main class="home"><section class="welcome-banner"><span class="eyebrow">Tu espacio de aprendizaje</span><h1>Hola, ${escapeHtml(state.user.name.split(" ")[0])}</h1><p>Bienvenido a Plantia. Explora los cursos y aprende a tu ritmo.</p><button class="hero-button" data-open-courses>Explorar cursos ${icon("arrow")}</button></section><section class="empty-course-feature"><span class="eyebrow">Tu aprendizaje comienza aquí</span><h2>Descubre tu próximo curso</h2><p>Explora el catálogo y encuentra algo nuevo para cultivar.</p><button class="primary" data-open-courses>Ver cursos disponibles</button></section></main>`,
     );
     app
       .querySelectorAll("[data-open-courses]")
@@ -123,6 +143,13 @@ async function renderHome() {
     "home",
     `<main class="home home-page"><section class="welcome-banner"><div class="welcome-content"><span class="tag">Tu espacio de aprendizaje</span><h1>Hola, ${escapeHtml(state.user.name.split(" ")[0])}</h1><p>Nos alegra tenerte aquí. Sigue cultivando tu curiosidad, una lección a la vez.</p><button class="hero-button" data-open-courses>Explorar cursos ${icon("arrow")}</button></div><span class="welcome-orbit" aria-hidden="true">${icon("leaf", "icon-xl")}</span></section><section class="home-learning-section"><div class="section-heading"><div><span class="eyebrow">Continúa donde te quedaste</span><h2>Tu aprendizaje reciente</h2></div></div>${recentFeature}</section></main>`,
   );
+  const discoveryCourses = courses.slice(0, 3);
+  if (discoveryCourses.length) {
+    app.querySelector(".home-learning-section")?.insertAdjacentHTML(
+      "afterend",
+      `<section class="home-discovery"><div class="section-heading"><div><span class="eyebrow">Sigue explorando</span><h2>Más cursos para ti</h2></div><button class="text-button" data-open-courses>Ver catálogo completo ${icon("arrow")}</button></div><div class="home-course-grid">${discoveryCourses.map((course) => `<article class="home-course-card" data-home-course="${escapeHtml(course.slug)}" tabindex="0" role="link" aria-label="Abrir curso: ${escapeHtml(course.title)}"><div class="home-course-cover">${courseCover(course)}${course.status ? '<span>Inscrito</span>' : ""}</div><div><span class="course-topic">${escapeHtml(course.category)}</span><h3>${escapeHtml(course.title)}</h3><p>${escapeHtml(course.short_description)}</p><b>${course.status ? "Continuar curso" : "Explorar curso"} ${icon("arrow")}</b></div></article>`).join("")}</div></section>`,
+    );
+  }
   app
     .querySelectorAll("[data-open-courses]")
     .forEach((button) => (button.onclick = () => renderView("courses")));
@@ -131,6 +158,16 @@ async function renderHome() {
     ?.addEventListener("click", (event) =>
       renderCourseDetail(event.currentTarget.dataset.resumeCourse, "home"),
     );
+  app.querySelectorAll("[data-home-course]").forEach((card) => {
+    const openCourse = () => renderCourseDetail(card.dataset.homeCourse, "home");
+    card.onclick = openCourse;
+    card.onkeydown = (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openCourse();
+      }
+    };
+  });
 }
 
 async function renderCourses() {
@@ -144,15 +181,31 @@ async function renderCourses() {
     showServiceError(app, result.error);
     return;
   }
-  const available = (result.courses || []).filter((course) => !course.status);
-  renderDashboard("courses", renderCatalog(available));
+  renderDashboard("courses", renderCatalog(result.courses || []));
   app
     .querySelectorAll("[data-course]")
     .forEach(
-      (button) =>
-        (button.onclick = () =>
-          renderCourseDetail(button.dataset.course, "courses")),
+      (card) => {
+        const openCourse = () => renderCourseDetail(card.dataset.course, "courses");
+        card.onclick = openCourse;
+        card.onkeydown = (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openCourse();
+          }
+        };
+      },
     );
+  app.querySelectorAll("[data-dismiss-course]").forEach((button) => {
+    button.onclick = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const card = button.closest("[data-course]");
+      const result = await recordAdaptiveEvent(Number(card?.dataset.courseId), "dismissed");
+      if (result.error) { showServiceError(app, result.error); return; }
+      renderCourses();
+    };
+  });
 }
 async function renderCourseDetail(slug, returnView = "courses") {
   showLoading("Cargando curso...");
@@ -163,6 +216,16 @@ async function renderCourseDetail(slug, returnView = "courses") {
     return;
   }
   renderDashboard(returnView, renderCourse(course));
+  const courseSummary = app.querySelector(".course-detail .page-header p b");
+  if (courseSummary) {
+    courseSummary.textContent = `${formatDuration(course.estimated_minutes)} · ${formatLevel(course.level)} · Avance: ${Math.round(Number(course.progress) || 0)}%`;
+  }
+  if (!course.status) {
+    app.querySelectorAll("[data-lesson][disabled]").forEach((button) => {
+      button.disabled = false;
+      button.textContent = "Inscribirme para abrir";
+    });
+  }
   app.querySelector("[data-back-courses]").onclick = () =>
     renderView(returnView);
   app
@@ -181,8 +244,15 @@ async function renderCourseDetail(slug, returnView = "courses") {
     .querySelectorAll("[data-lesson]")
     .forEach(
       (button) =>
-        (button.onclick = () =>
-          renderLessonView(button.dataset.lesson, returnView)),
+        (button.onclick = async () => {
+          if (!course.status) {
+            const confirmed = await requestCourseEnrollment(course);
+            if (!confirmed) return;
+            const result = await enrollInCourse(course.id);
+            if (result.error) { showServiceError(app, result.error); return; }
+          }
+          renderLessonView(button.dataset.lesson, returnView);
+        }),
     );
 }
 
@@ -423,7 +493,7 @@ function renderView(view) {
 }
 
 function showOnboarding() {
-  renderOnboarding(app, state.step, state.answers, {
+  renderOnboarding(app, state.step, state.answers, state.plants, {
     logout,
     back: () => {
       state.step = Math.max(1, state.step - 1);
@@ -510,7 +580,7 @@ async function showPublicLanding() {
 }
 
 async function initialize() {
-  showLoading("Iniciando Tuboco...");
+  showLoading("Iniciando Plantia...");
   const result = await getSession();
   if (result.error) throw new Error(result.error);
   state.user = result.user;
@@ -520,6 +590,8 @@ async function initialize() {
     return;
   }
   if (!state.profile) {
+    const plants = await getPlantCatalog();
+    state.plants = plants.error ? [] : plants.plants || [];
     showOnboarding();
     return;
   }

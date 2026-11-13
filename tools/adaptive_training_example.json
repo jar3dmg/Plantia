@@ -1,0 +1,26 @@
+[
+  {
+    "profile": {"knowledge_level": "beginner", "tags": ["interest-indoor", "time-low"]},
+    "course": {"id": 1, "level": "beginner", "estimated_minutes": 60, "tags": ["interest-indoor"]},
+    "events": [],
+    "label": 1
+  },
+  {
+    "profile": {"knowledge_level": "beginner", "tags": ["interest-indoor", "time-low"]},
+    "course": {"id": 2, "level": "advanced", "estimated_minutes": 300, "tags": ["topic-propagation"]},
+    "events": [],
+    "label": 0
+  },
+  {
+    "profile": {"knowledge_level": "intermediate", "tags": ["topic-propagation"]},
+    "course": {"id": 3, "level": "intermediate", "estimated_minutes": 120, "tags": ["topic-propagation"]},
+    "events": [],
+    "label": 1
+  },
+  {
+    "profile": {"knowledge_level": "advanced", "tags": ["interest-indoor"]},
+    "course": {"id": 4, "level": "beginner", "estimated_minutes": 45, "tags": ["interest-basic-botany"]},
+    "events": [{"type": "dismissed", "course_id": 4}],
+    "label": 0
+  }
+]

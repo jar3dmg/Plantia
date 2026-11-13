@@ -1,4 +1,4 @@
-﻿// Tuboco — esquema actual de las migraciones 001 a 005.
+// Plantia — esquema actual de las migraciones 001 a 005.
 // Pega este archivo en dbdiagram.io usando el modo DBML.
 
 Enum user_status {

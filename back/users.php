@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const AUTH_COOKIE_NAME = 'tuboco_auth';
+const AUTH_COOKIE_NAME = 'plantia_auth';
 const AUTH_TOKEN_TTL_HOURS = 8;
 
 /** Genera las opciones seguras de la cookie de autenticación. */

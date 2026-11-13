@@ -14,7 +14,7 @@ export async function request(action, { payload, query = {} } = {}) {
   } catch {
     return {
       error:
-        "No se pudo conectar con Tuboco. Comprueba que el servidor esté activo.",
+        "No se pudo conectar con Plantia. Comprueba que el servidor esté activo.",
     };
   }
 

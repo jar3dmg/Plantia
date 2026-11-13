@@ -4,19 +4,19 @@ export function renderAuth(container, mode, { submit, navigate, back }) {
   <section class="auth-layout">
     <aside class="art">
       <button class="auth-back" type="button" data-auth-back>
-        ← Volver a Tuboco
+        ← Volver a Plantia
       </button>
 
       <div class="brand">
-        TUBOCO
+        PLANTIA
         <small>tu botánica de confianza</small>
       </div>
 
       <div class="art-mark">
         <img
           class="auth-logo-image"
-          src="front/images/tuboco-logo.png"
-          alt="Logo de Tuboco"
+          src="front/images/plantia-logo.png"
+          alt="Logo de Plantia"
         >
       </div>
 
@@ -64,7 +64,7 @@ export function renderAuth(container, mode, { submit, navigate, back }) {
         <div data-form-message></div>
 
         <button class="primary">
-          ${mode === "login" ? "Entrar a Tuboco" : "Crear mi cuenta"}
+          ${mode === "login" ? "Entrar a Plantia" : "Crear mi cuenta"}
         </button>
       </form>
 

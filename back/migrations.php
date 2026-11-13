@@ -10,6 +10,7 @@ function migrations(): array
         require __DIR__ . '/../database/migrations/003_recommendation_rule_payloads.php',
         require __DIR__ . '/../database/migrations/004_learning_content_metadata.php',
         require __DIR__ . '/../database/migrations/005_database_auth_sessions.php',
+        require __DIR__ . '/../database/migrations/006_adaptive_engine_events.php',
     ];
 }
 

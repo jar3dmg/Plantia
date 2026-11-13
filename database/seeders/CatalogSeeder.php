@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Catálogos iniciales de Tuboco.
+ * Catálogos iniciales de Plantia.
  *
  * El seeder es idempotente: usa los códigos funcionales como llave natural,
  * por lo que puede ejecutarse de nuevo para corregir o completar el catálogo.

@@ -139,6 +139,24 @@
 .course-detail {
   max-width: 58rem;
 }
+.enrollment-dialog {
+  width: min(92vw, 30rem);
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: var(--white);
+  color: var(--brown);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+}
+.enrollment-dialog::backdrop { background: rgba(31, 43, 30, 0.56); backdrop-filter: blur(3px); }
+.enrollment-dialog-content { padding: 1.7rem; }
+.enrollment-dialog h2 { margin: 0.45rem 0 0.7rem; font-size: 1.45rem; }
+.enrollment-dialog p { margin: 0; color: var(--muted); line-height: 1.55; }
+.enrollment-dialog-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
+.text-button[data-back-courses] .icon,
+.text-button[data-back-course] .icon {
+  transform: rotate(180deg);
+}
 .course-duration {
   display: inline-block;
   margin-top: 0.75rem;

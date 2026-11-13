@@ -9,6 +9,7 @@ require __DIR__ . '/back/http.php';
 require __DIR__ . '/back/users.php';
 require __DIR__ . '/back/profiles.php';
 require __DIR__ . '/back/services/LearningService.php';
+require __DIR__ . '/back/services/AdaptiveRecommendationService.php';
 
 // Se crean bajo demanda para mantener el controlador independiente de rutas.
 $database = database();
@@ -25,6 +26,10 @@ try {
     $user = currentUser($database);
     $learning = new LearningService($database, $user);
     if ($action === 'courses') { respond(['courses' => $learning->catalog()]); }
+    if ($action === 'plants') {
+        $plants = $database->query("SELECT code,common_name,scientific_name,ecosystem FROM plant_taxa WHERE taxon_type='species' AND is_active=1 ORDER BY COALESCE(common_name,scientific_name),scientific_name")->fetchAll(PDO::FETCH_ASSOC);
+        respond(['plants' => $plants]);
+    }
 
     if ($action === 'register') {
         registerUser($database, $data);
@@ -45,6 +50,12 @@ try {
     if ($action === 'references') { respond(['references'=>$learning->references()]); }
     if ($action === 'lesson') { $lesson=$learning->lesson((int)($_GET['id']??0)); respond($lesson?:['error'=>'Lección no encontrada.'],$lesson?200:404); }
     if ($action === 'enroll') { $learning->enroll((int)($data['course_id']??0)); respond(['ok'=>true]); }
+    if ($action === 'adaptive_event') {
+        $type=(string)($data['type'] ?? '');
+        if (!in_array($type,['dismissed'],true) || !(int)($data['course_id'] ?? 0)) respond(['error'=>'Evento adaptativo no válido.'],422);
+        (new AdaptiveRecommendationService($database))->record((int)$user['id'],$type,(int)$data['course_id']);
+        respond(['ok'=>true]);
+    }
     if ($action === 'submit_attempt') { respond($learning->submitAttempt((int)($data['block_id']??0),$data['answer']??null)); }
     if ($action === 'complete_lesson') { respond($learning->completeLesson((int)($data['lesson_id']??0))); }
 
