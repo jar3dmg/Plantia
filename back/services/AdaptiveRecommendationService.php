@@ -9,12 +9,14 @@ final class AdaptiveRecommendationService
     /** @param array<int,array<string,mixed>> $courses */
     public function rank(int $userId, array $courses): array
     {
+        $courses=$this->withoutDismissedCourses($userId,$courses);
         if (!$courses || !$this->hasProfile($userId)) return $courses;
         $profile=$this->profile($userId);
         $document = ['profile'=>$profile, 'courses'=>$this->withTags($courses, $profile), 'events'=>$this->events($userId), 'rules'=>$this->rules()];
         $this->annotateBehaviorMatches($document['courses'], $document['events']);
         $decision = $this->callPython($document);
-        if (!$decision || empty($decision['recommendations'])) return $courses;
+        if (!$decision || empty($decision['recommendations'])) return $this->cachedRanking($userId,$courses);
+        $this->storeRecommendations($userId,$decision['recommendations']);
         $positions=[];
         foreach ($decision['recommendations'] as $position=>$recommendation) $positions[(int)$recommendation['course_id']]=[$position,$recommendation];
         foreach ($courses as &$course) {
@@ -34,6 +36,7 @@ final class AdaptiveRecommendationService
     {
         $event=$this->db->prepare('INSERT INTO adaptive_events(user_id,course_id,event_type,payload,occurred_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP)');
         $event->execute([$userId,$courseId,$type,json_encode($payload, JSON_UNESCAPED_UNICODE)]);
+        if ($courseId) $this->storeInteractionState($userId,$courseId,$type);
     }
 
     private function hasProfile(int $userId): bool { $q=$this->db->prepare('SELECT 1 FROM user_profiles WHERE user_id=?'); $q->execute([$userId]); return (bool)$q->fetchColumn(); }
@@ -111,6 +114,50 @@ final class AdaptiveRecommendationService
             $course['topic_interaction_count']=max([0,...array_map(static fn(string $tag): int => $topicCounts[$tag] ?? 0,$course['tags'])]);
             $course['course_matches_repeated_topic']=$course['topic_interaction_count'] >= 2;
         }
+    }
+
+    /** Persiste el resultado calculado para reutilizarlo si el motor no está disponible. */
+    private function storeRecommendations(int $userId, array $recommendations): void
+    {
+        $save=$this->db->prepare('INSERT INTO user_course_recommendations(user_id,course_id,score,reasons,generated_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE score=VALUES(score),reasons=VALUES(reasons),generated_at=CURRENT_TIMESTAMP');
+        foreach ($recommendations as $recommendation) $save->execute([$userId,(int)$recommendation['course_id'],(float)$recommendation['score'],json_encode($recommendation['reasons'] ?? [],JSON_UNESCAPED_UNICODE)]);
+    }
+
+    /** Guarda estados explícitos de interfaz sin recalcular el catálogo durante una acción. */
+    private function storeInteractionState(int $userId, int $courseId, string $type): void
+    {
+        if (!in_array($type,['opened','dismissed'],true)) return;
+        $field=$type==='opened' ? 'is_opened' : 'is_dismissed';
+        $save=$this->db->prepare("INSERT INTO user_course_recommendations(user_id,course_id,{$field},generated_at) VALUES(?,?,1,CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE {$field}=1,generated_at=CURRENT_TIMESTAMP");
+        $save->execute([$userId,$courseId]);
+    }
+
+    /** Un descarte oculta sólo cursos no inscritos; la ruta de aprendizaje permanece visible. */
+    private function withoutDismissedCourses(int $userId, array $courses): array
+    {
+        $dismissed=$this->db->prepare('SELECT course_id FROM user_course_recommendations WHERE user_id=? AND is_dismissed=1');
+        $dismissed->execute([$userId]);
+        $ids=array_flip(array_map('intval',$dismissed->fetchAll(PDO::FETCH_COLUMN)));
+        return array_values(array_filter($courses, static fn(array $course): bool => !isset($ids[(int)$course['id']]) || !empty($course['status'])));
+    }
+
+    /** Si Python falla, entrega el último ranking persistido en la tabla existente. */
+    private function cachedRanking(int $userId, array $courses): array
+    {
+        $cached=$this->db->prepare('SELECT course_id,score,reasons FROM user_course_recommendations WHERE user_id=?');
+        $cached->execute([$userId]);
+        $byCourse=[];
+        foreach ($cached->fetchAll(PDO::FETCH_ASSOC) as $row) $byCourse[(int)$row['course_id']]=$row;
+        foreach ($courses as &$course) {
+            $row=$byCourse[(int)$course['id']] ?? null;
+            if (!$row) continue;
+            $course['recommendation_score']=(float)$row['score'];
+            $reasons=json_decode($row['reasons'] ?? '[]',true) ?: [];
+            $course['recommendation_reason']=$reasons[0] ?? 'Recomendado según tu perfil';
+        }
+        unset($course);
+        usort($courses, static fn(array $a, array $b): int => ($b['recommendation_score'] ?? -INF) <=> ($a['recommendation_score'] ?? -INF));
+        return $courses;
     }
 
     private function callPython(array $document): ?array

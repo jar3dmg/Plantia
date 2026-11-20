@@ -390,9 +390,9 @@ def main() -> int:
         model = OnlineLogisticRegression.load(args.model); result = model.fit(read_json(args.input)); model.save(args.model); print(json.dumps(result, ensure_ascii=False, indent=2)); return 0
     if args.command == "record-event":
         record = read_json(args.input)
-        if record.get("type") not in {"opened", "dismissed", "enrolled", "completed", "plant_registered", "attempt_submitted"}:
-            raise ValueError("type debe ser opened, dismissed, enrolled, completed, plant_registered o attempt_submitted.")
-        if "course_id" not in record and record["type"] not in {"plant_registered"}:
+        if record.get("type") not in {"opened", "dismissed", "enrolled", "lesson_completed", "completed", "plant_registered", "attempt_submitted", "profile_updated", "preferences_updated"}:
+            raise ValueError("type debe ser opened, dismissed, enrolled, lesson_completed, completed, plant_registered, attempt_submitted, profile_updated o preferences_updated.")
+        if "course_id" not in record and record["type"] not in {"plant_registered", "profile_updated", "preferences_updated"}:
             raise ValueError("course_id es obligatorio para este evento.")
         record.setdefault("occurred_at", now())
         append_jsonl(args.events_log, record)

@@ -123,6 +123,7 @@ final class LearningService
             $update=$this->db->prepare("UPDATE user_courses SET progress_percentage=?,status=?,final_score=?,completed_at=IF(?=100,CURRENT_TIMESTAMP,NULL),last_accessed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?");
             $update->execute([$progress,$progress===100?'completed':'in_progress',$finalScore === null ? null : round((float)$finalScore,2),$progress,$enrollment]);
             $this->db->commit();
+            (new AdaptiveRecommendationService($this->db))->record((int)$this->user['id'],'lesson_completed',$courseId,['lesson_id'=>$lessonId,'progress'=>$progress]);
             if ($progress===100) (new AdaptiveRecommendationService($this->db))->record((int)$this->user['id'],'completed',$courseId,['final_score'=>$finalScore === null ? null : round((float)$finalScore,2)]);
             return ['ok'=>true,'progress'=>$progress];
         } catch (Throwable $exception) {

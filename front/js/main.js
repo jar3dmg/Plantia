@@ -90,10 +90,23 @@ function requestCourseEnrollment(course) {
   });
 }
 
+function readingSymbol(course) {
+  return {
+    "plantas-felices-en-casa": "🪴",
+    "jardin-para-polinizadores": "🐝",
+    "suculentas-sin-exceso-de-riego": "💧",
+    "botanica-desde-cero": "🔎",
+    "tu-primer-huerto": "🌱",
+    "propaga-tus-plantas": "✂️",
+    "composta-en-casa": "♻️",
+    "hogar-verde-seguro-para-mascotas": "🐾",
+  }[course.slug] || "🌿";
+}
+
 function courseCover(course) {
   const coverUrl = courseCoverUrl(course);
   return coverUrl
-    ? `<img class="course-cover-image" src="${escapeHtml(coverUrl)}" alt="Portada: ${escapeHtml(course.title)}" loading="lazy">`
+    ? `<img class="course-cover-image" src="${escapeHtml(coverUrl)}" alt="Portada: ${escapeHtml(course.title)}" loading="lazy"><span class="reading-visual-symbol" role="img" aria-label="Símbolo de portada para ${escapeHtml(course.title)}">${readingSymbol(course)}</span>`
     : icon("leaf", "icon-xl");
 }
 

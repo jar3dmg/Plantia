@@ -240,8 +240,7 @@ html[data-font-mode="dyslexia"] h2,
 html[data-font-mode="dyslexia"] h3 {
   letter-spacing: 0.02em;
 }
-html.reading-mode .hero-plant,
-html.reading-mode .course-art {
+html.reading-mode .hero-plant {
   display: none;
 }
 html.reading-mode .hero {

@@ -832,6 +832,45 @@ html.reading-mode .route-feature {
 html.reading-mode .route-list-item {
   grid-template-columns: minmax(0, 1fr) auto;
 }
+.reading-visual-symbol {
+  display: none;
+}
+html.reading-mode .course-art .course-cover-image,
+html.reading-mode .recent-course-art .course-cover-image,
+html.reading-mode .route-feature-art .course-cover-image,
+html.reading-mode .route-list-cover .course-cover-image,
+html.reading-mode .course-detail-cover-image {
+  display: none;
+}
+html.reading-mode .course-art .reading-visual-symbol,
+html.reading-mode .recent-course-art .reading-visual-symbol,
+html.reading-mode .route-feature-art .reading-visual-symbol,
+html.reading-mode .route-list-cover .reading-visual-symbol {
+  display: grid;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  place-items: center;
+  background: var(--green-pale);
+  color: var(--green);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1;
+}
+html.reading-mode .course-detail.course-detail .course-detail-cover {
+  display: grid !important;
+  min-height: 9rem;
+  height: auto;
+  place-items: center;
+  background: var(--green-pale);
+  box-shadow: none;
+}
+html.reading-mode .course-detail-cover .reading-detail-symbol {
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  font-size: 4rem;
+  line-height: 1;
+}
 .lesson-reading-content {
   display: grid;
   gap: 1rem;

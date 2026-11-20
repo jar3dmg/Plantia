@@ -43,6 +43,7 @@ function saveInterfacePreferences(PDO $db, array $user, array $data): void
 
     $query = $db->prepare('UPDATE user_profiles SET theme = ?, font_size = ?, reading_mode = ?, font_mode = ?, knowledge_level = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?');
     $query->execute([$theme, $fontSize, $readingMode, $fontMode, $level, (int) $user['id']]);
+    (new AdaptiveRecommendationService($db))->record((int) $user['id'], 'preferences_updated', null, ['knowledge_level' => $level]);
     respond(['ok' => true]);
 }
 
@@ -94,5 +95,6 @@ function saveProfile(PDO $db, array $user, array $data): void
             $addPlant->execute([$userId, $plantId]);
         }
     }
+    (new AdaptiveRecommendationService($db))->record($userId, 'profile_updated', null, ['interests' => $codes, 'goal' => $goal]);
     respond(['ok' => true]);
 }
