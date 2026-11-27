@@ -37,13 +37,28 @@ export function renderCatalog(courses) {
     courseCoverUrl(course)
       ? `<img class="course-cover-image" src="${escapeHtml(courseCoverUrl(course))}" alt="Portada: ${escapeHtml(course.title)}" loading="lazy"><span class="reading-visual-symbol" role="img" aria-label="Símbolo de portada para ${escapeHtml(course.title)}">${readingSymbol(course)}</span>`
       : icon("book", "icon-xl");
-  const cards = courses
+  const renderCards = (items) => items
     .map(
       (course, index) =>
-        `<article class="course catalog-course ${course.status ? "is-enrolled" : ""}" style="--card-index:${index}" data-course="${escapeHtml(course.slug)}" data-course-id="${Number(course.id)}" tabindex="0" role="link" aria-label="Abrir curso: ${escapeHtml(course.title)}"><div class="course-art course-cover">${cover(course)}<span>${formatDuration(course.estimated_minutes)}</span>${course.status ? '<span class="course-enrolled-badge">Inscrito</span>' : ""}</div><div class="course-copy"><span class="course-topic">${escapeHtml(course.category)}</span><h3>${escapeHtml(course.title)}</h3><p>${escapeHtml(course.short_description)}</p>${course.recommendation_reason ? `<p class="course-recommendation">Para ti: ${escapeHtml(course.recommendation_reason)}</p>` : ""}<div class="catalog-course-meta"><span>${escapeHtml(formatLevel(course.level))}</span><span>${formatDuration(course.estimated_minutes)}</span></div><span class="card-open-hint">${course.status ? "Continuar curso" : "Ver curso"} ${icon("arrow")}</span><button type="button" class="dismiss-course-button" data-dismiss-course>No me interesa</button></div></article>`,
+        `<article class="course catalog-course ${course.status ? "is-enrolled" : ""}" style="--card-index:${index}" data-course="${escapeHtml(course.slug)}" data-course-id="${Number(course.id)}" tabindex="0" role="link" aria-label="Abrir curso: ${escapeHtml(course.title)}"><div class="course-art course-cover">${cover(course)}<span>${formatDuration(course.estimated_minutes)}</span>${course.status ? '<span class="course-enrolled-badge">Inscrito</span>' : ""}</div><div class="course-copy"><span class="course-topic">${escapeHtml(course.category)}</span><h3>${escapeHtml(course.title)}</h3><p>${escapeHtml(course.short_description)}</p>${course.is_recommended && course.recommendation_reason ? `<p class="course-recommendation">Para ti: ${escapeHtml(course.recommendation_reason)}</p>` : ""}<div class="catalog-course-meta"><span>${escapeHtml(formatLevel(course.level))}</span><span>${formatDuration(course.estimated_minutes)}</span></div><span class="card-open-hint">${course.status ? "Continuar curso" : "Ver curso"} ${icon("arrow")}</span><button type="button" class="dismiss-course-button" data-dismiss-course>No me interesa</button></div></article>`,
     )
     .join("");
-  return `<main class="home catalog-page"><header class="catalog-banner"><div><span class="eyebrow">Biblioteca Plantia</span><h1>Encuentra tu próximo aprendizaje</h1><p>Explora todos los cursos disponibles y elige por dónde quieres empezar.</p><span class="catalog-count">${courses.length} ${courses.length === 1 ? "curso" : "cursos"}</span></div><span class="catalog-banner-art" aria-hidden="true">${icon("leaf", "icon-xl")}</span></header>${courses.length ? `<section class="catalog-results"><div class="course-grid">${cards}</div></section>` : '<section class="catalog-empty"><span class="eyebrow">Biblioteca al día</span><h2>Estamos preparando nuevos cursos</h2><p>Vuelve pronto para descubrir tu próximo aprendizaje.</p></section>'}</main>`;
+  const recommended = courses
+    .filter((course) => Boolean(course.is_recommended))
+    .sort(
+      (first, second) =>
+        Number(second.recommendation_score) - Number(first.recommendation_score),
+    )
+    .slice(0, 3);
+  const recommendedIds = new Set(recommended.map((course) => course.id));
+  const catalog = courses.filter((course) => !recommendedIds.has(course.id));
+  const recommendedSection = recommended.length
+    ? `<section class="catalog-results catalog-recommendations"><div class="catalog-section-heading"><div><span class="eyebrow">Selección para ti</span><h2>Recomendados para ti</h2><p>Elegidos según tu perfil y la actividad en Plantia.</p></div><span class="catalog-section-count">${recommended.length}</span></div><div class="course-grid">${renderCards(recommended)}</div></section>`
+    : "";
+  const catalogSection = catalog.length
+    ? `<section class="catalog-results catalog-all-courses"><div class="catalog-section-heading"><div><span class="eyebrow">Catálogo completo</span><h2>${recommended.length ? "Todos los cursos" : "Cursos disponibles"}</h2></div><span class="catalog-section-count">${catalog.length}</span></div><div class="course-grid">${renderCards(catalog)}</div></section>`
+    : "";
+  return `<main class="home catalog-page"><header class="catalog-banner"><div><span class="eyebrow">Biblioteca Plantia</span><h1>Encuentra tu próximo aprendizaje</h1><p>Explora todos los cursos disponibles y elige por dónde quieres empezar.</p><span class="catalog-count">${courses.length} ${courses.length === 1 ? "curso" : "cursos"}</span></div><span class="catalog-banner-art" aria-hidden="true">${icon("leaf", "icon-xl")}</span></header>${courses.length ? `${recommendedSection}${catalogSection}` : '<section class="catalog-empty"><span class="eyebrow">Biblioteca al día</span><h2>Estamos preparando nuevos cursos</h2><p>Vuelve pronto para descubrir tu próximo aprendizaje.</p></section>'}</main>`;
 }
 
 export function renderCourse(course) {

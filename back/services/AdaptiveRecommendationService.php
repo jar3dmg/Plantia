@@ -24,6 +24,7 @@ final class AdaptiveRecommendationService
             [, $recommendation]=$positions[(int)$course['id']];
             $course['recommendation_score']=$recommendation['score'];
             $course['recommendation_reason']=$recommendation['reasons'][0] ?? 'Recomendado según tu perfil';
+            $course['is_recommended']=(float)$recommendation['score'] > 0;
             $course['_adaptive_position']=$positions[(int)$course['id']][0];
         }
         unset($course);
@@ -154,6 +155,7 @@ final class AdaptiveRecommendationService
             $course['recommendation_score']=(float)$row['score'];
             $reasons=json_decode($row['reasons'] ?? '[]',true) ?: [];
             $course['recommendation_reason']=$reasons[0] ?? 'Recomendado según tu perfil';
+            $course['is_recommended']=(float)$row['score'] > 0;
         }
         unset($course);
         usort($courses, static fn(array $a, array $b): int => ($b['recommendation_score'] ?? -INF) <=> ($a['recommendation_score'] ?? -INF));
