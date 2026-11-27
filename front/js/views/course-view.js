@@ -19,23 +19,10 @@ export function formatLevel(level) {
 
 // Plantillas del catálogo y las lecciones.
 
-function readingSymbol(course) {
-  return {
-    "plantas-felices-en-casa": "🪴",
-    "jardin-para-polinizadores": "🐝",
-    "suculentas-sin-exceso-de-riego": "💧",
-    "botanica-desde-cero": "🔎",
-    "tu-primer-huerto": "🌱",
-    "propaga-tus-plantas": "✂️",
-    "composta-en-casa": "♻️",
-    "hogar-verde-seguro-para-mascotas": "🐾",
-  }[course.slug] || "🌿";
-}
-
 export function renderCatalog(courses) {
   const cover = (course) =>
     courseCoverUrl(course)
-      ? `<img class="course-cover-image" src="${escapeHtml(courseCoverUrl(course))}" alt="Portada: ${escapeHtml(course.title)}" loading="lazy"><span class="reading-visual-symbol" role="img" aria-label="Símbolo de portada para ${escapeHtml(course.title)}">${readingSymbol(course)}</span>`
+      ? `<img class="course-cover-image" src="${escapeHtml(courseCoverUrl(course))}" alt="Portada: ${escapeHtml(course.title)}" loading="lazy"><div class="reading-visual-symbol" aria-hidden="true">${icon("book", "icon-xl")}</div>`
       : icon("book", "icon-xl");
   const renderCards = (items) => items
     .map(
@@ -64,7 +51,7 @@ export function renderCatalog(courses) {
 export function renderCourse(course) {
   const coverUrl = courseCoverUrl(course);
   const cover = coverUrl
-    ? `<img class="course-detail-cover-image" src="${escapeHtml(coverUrl)}" alt="Portada: ${escapeHtml(course.title)}"><span class="reading-visual-symbol reading-detail-symbol" role="img" aria-label="Símbolo de portada para ${escapeHtml(course.title)}">${readingSymbol(course)}</span>`
+    ? `<img class="course-detail-cover-image" src="${escapeHtml(coverUrl)}" alt="Portada: ${escapeHtml(course.title)}"><div class="reading-visual-symbol reading-detail-symbol" aria-hidden="true">${icon("book", "icon-xl")}</div>`
     : "";
   return `<main class="home course-detail ${course.status ? "enrolled-course" : ""}"><button class="text-button" data-back-courses>${icon("arrow")} Volver a cursos</button>${cover ? `<div class="course-detail-cover">${cover}</div>` : ""}<header class="page-header"><span class="eyebrow">${escapeHtml(course.category)}</span><h1>${escapeHtml(course.title)}</h1><p>${escapeHtml(course.description)}</p><p><b>${course.estimated_minutes} min &middot; ${escapeHtml(course.level)} &middot; Avance: ${Math.round(Number(course.progress))}%</b></p>${course.status ? '<span class="enrolled-label">Inscrito</span>' : '<button class="primary" data-enroll>Inscribirme y comenzar</button>'}<div class="progress-track"><i style="width:${Math.max(0, Math.min(100, Number(course.progress)))}%"></i></div><h2>Objetivos</h2><ul>${(course.outcomes || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h2>Requisitos</h2><ul>${(course.prerequisites || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></header><section class="lesson-list">${(course.modules || []).map((lesson) => `<article class="lesson-card"><span class="lesson-number">${lesson.lesson_position}</span><div><span class="course-topic">${escapeHtml(lesson.title)}</span><h2>${escapeHtml(lesson.lesson_title)} ${Number(lesson.completed) ? "&#10003;" : ""}</h2><p>${escapeHtml(lesson.lesson_description)}</p><button class="text-button" data-lesson="${lesson.lesson_id}" ${!course.status && Number(lesson.lesson_position) !== 1 ? "disabled" : ""}>${!course.status && Number(lesson.lesson_position) !== 1 ? "Inscríbete para abrir" : "Abrir lección"}</button></div></article>`).join("")}</section></main>`;
 }
